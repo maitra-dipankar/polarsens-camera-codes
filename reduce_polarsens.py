@@ -1,5 +1,6 @@
 '''
 Reduces observations made with the QHY550P camera.
+File or folder names should not contain spaces!
 Assumes user says that the FITS frames from the QHY550P camera is in
      datadir, which is organized as below:
      datadir/Bias         includes the bias frames,
@@ -178,6 +179,7 @@ def biasCombine (ipDir):
 
     return 0
 
+
 def darkCombine (ipDir):
     '''
     Subtract the combined bias from each dark, then combine 
@@ -317,7 +319,6 @@ def calibrateScience (ipDir):
 
 
 def getDoLP (dataDir, opDir):
-    # Make list of science images in datadir
     sciencePath = os.path.join(dataDir, 'Science')
     scienceFiles = sorted(glob.glob(sciencePath + "/*.fits"))
 
@@ -332,7 +333,7 @@ def getDoLP (dataDir, opDir):
 
         for angle in angles:
             fnam = os.path.basename( split_tup[0] + '_' + angle + '.fits')
-            floc = os.path.join(opDir, angle, 'CalibScience',fnam)
+            floc = os.path.join(opDir, angle, 'calibScience',fnam)
             if not os.path.isfile(floc):
                 print(floc, 'not found')
 
@@ -353,13 +354,20 @@ def getDoLP (dataDir, opDir):
         Q = (I000-I090)
         U = (I045-I135)
 
-        # Compute DoLP values and write to FITS
+        # Compute DoLP and AoLP values and write to FITS
         dolp = np.sqrt(Q*Q + U*U)/I
+        aolp = 0.5*np.arctan2(U, Q)
+
         header.pop('SWCREATE', None)
         header.pop('POL_ANG', None)
         header.pop('BUNIT', None)
-        header['FRAMETYP'] = ('DoLP', 'Pixels are fractional DoLP values')
-        fits.writeto(dolpLoc, dolp, header, overwrite=True)
+        #header['FRAMETYP'] = ('DoLP', 'Pixels are fractional DoLP values')
+        #fits.writeto(dolpLoc, dolp, header, overwrite=True)
+        empty_primary = fits.PrimaryHDU(header=header)
+        dolp_hdu1 = fits.ImageHDU(dolp)
+        aolp_hdu2 = fits.ImageHDU(aolp)
+        hdul = fits.HDUList([empty_primary, dolp_hdu1, aolp_hdu2])
+        hdul.writeto(dolpLoc, overwrite=True)
 
     return 0
 
@@ -385,6 +393,6 @@ ret = flatCombine(op)
 ret = calibrateScience (op)
 '''
 
-
+# Write DoLP and AoLP images
 ret = getDoLP(ip, op)
 
