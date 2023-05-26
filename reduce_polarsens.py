@@ -17,7 +17,9 @@ into pXXX = (p000 & p045 & p090 & p135) subdirectories such that
 Thereafter it calibrates the science images via bias- and dark-subtraction,
 and flat-correction.
 
-TBD: Create DoLP and AoLP images from the calibrated science images.
+TBD: 
+- Create AoLP images from the calibrated science images.
+- Read FITS produced by Lucidvision Cameras as well.
 '''
 
 import os, sys, glob, shutil
