@@ -1,7 +1,9 @@
+#!/usr/bin/env python3
+
 '''
-Reduces observations made with the QHY550P camera.
-File or folder names should not contain spaces!
-Assumes user says that the FITS frames from the QHY550P camera is in
+* Reduces observations made with the QHY550P camera or PHX050S cameras.
+* File or folder names should not contain spaces!
+* Assumes user says that the FITS frames from the camera are in
      datadir, which is organized as below:
      datadir/Bias         includes the bias frames,
      datadir/Darks        includes the dark frames,
@@ -19,7 +21,6 @@ Thereafter it calibrates the science images via bias- and dark-subtraction,
 and flat-correction.
 
 TBD: 
-- Create AoLP images from the calibrated science images.
 - Read FITS produced by Lucidvision Cameras as well.
 '''
 
@@ -39,7 +40,7 @@ def inv_median(a):
 
 def split_poldata(datadir, opdir):
     '''
-    Assumes user says that the FITS frames from the QHY550P camera is in
+    Assumes user says that the FITS frames from the polarsens cameras are in
      datadir, which is organized as below:
      datadir/Bias         includes the bias frames,
      datadir/Darks        includes the dark frames,
@@ -99,21 +100,28 @@ def split_poldata(datadir, opdir):
 
             # Split each raw image into four angles
 
-            # Determine whether the image was created using NINA or SharpCap
+            # Determine whether the image was created using 
+            # NINA or SharpCap (for the QHY550P camera), or
+            # using ArenaSDK (for the PHX050S camera)
             sw = fits.getval(image, 'SWCREATE', ext=0)
             if (sw.find('SharpCap') != -1):
                 print('Reading FITS image taken with SharpCap')
         
                 # Crop image to keep good region
                 img_data = img_array_raw[0:-22, 0:-12]
-        
+
+                # Divide by 16 (= 2^16 / 2^12) because the FITS files are
+                # stretched to 16 bits/pixel whereas the CMOS is 12 bpp!
+                img_data_scaled = img_data/16
+                img_data_scaled = img_data_scaled.astype('int16')
+    
                 # Get rid of some junk header keywords inserted by SharpCap
                 header.pop('COLORTYP', None)
                 header.pop('XBAYROFF', None)
                 header.pop('YBAYROFF', None)
                 header.pop('YBAYROFF', None)
-                header.pop('BAYOFFX', None)
-                header.pop('BAYOFFY', None)
+                header.pop('BAYOFFX',  None)
+                header.pop('BAYOFFY',  None)
                 header.pop('BAYERPAT', None)
     
 
@@ -123,15 +131,21 @@ def split_poldata(datadir, opdir):
                 # Crop image to keep good region
                 img_data = img_array_raw[22:, 12:]
         
+                # Divide by 16 (= 2^16 / 2^12) because the FITS files are
+                # stretched to 16 bits/pixel whereas the CMOS is 12 bpp!
+                img_data_scaled = img_data/16
+                img_data_scaled = img_data_scaled.astype('int16')
+    
+            elif (sw.find('ArenaSDK') != -1):
+                print('Reading FITS image taken with ArenaSDK')
+
+                # No need to trim or scale PHX050S data
+                img_data_scaled = img_array_raw
+        
             else:
-                print('Neither SharpCap nor NINA! Quitting ...')
+                print('Not SharpCap/NINA/ArenaSDK! Quitting ...')
                 sys.exit(0)
 
-            # Divide by 16 (= 2^16 / 2^12) because the FITS files are
-            # stretched to 16 bits/pixel whereas the CMOS is 12 bpp!
-            img_data_scaled = img_data/16
-            img_data_scaled = img_data_scaled.astype('int16')
-    
             # Extract the subimages 
             orient_000 = img_data_scaled[1::2, 1::2]
             orient_045 = img_data_scaled[::2,  1::2]
@@ -317,20 +331,25 @@ def calibrateScience (ipDir):
 
     return 0
 
-
-def getDoLP (dataDir, opDir):
+def makeDoLP_AoLP_images (dataDir, opDir):
+    '''
+    Save linear polarization results --- DoLP and AoLP
+    as multi-extension FITS images.
+    '''
     sciencePath = os.path.join(dataDir, 'Science')
     scienceFiles = sorted(glob.glob(sciencePath + "/*.fits"))
 
-    # Create directory to store DoLP images
-    dolpDir = os.path.join(opDir,'dolp')
-    os.makedirs(dolpDir, exist_ok=True)
+    # Create directory to store Linear Polarization results as images
+    lpDir = os.path.join(opDir,'dolp_aolp')
+    os.makedirs(lpDir, exist_ok=True)
 
-    for image in scienceFiles:
+    # Read every image
+    for image in scienceFiles:     
         split_tup = os.path.splitext(image)
-        dolpNam = os.path.basename( split_tup[0] + '_dolp.fits')
-        dolpLoc = os.path.join(dolpDir,dolpNam)
+        lpNam = os.path.basename( split_tup[0] + '_lp.fits')
+        lpLoc = os.path.join(lpDir,lpNam)
 
+        # Get data for every angle
         for angle in angles:
             fnam = os.path.basename( split_tup[0] + '_' + angle + '.fits')
             floc = os.path.join(opDir, angle, 'calibScience',fnam)
@@ -349,25 +368,25 @@ def getDoLP (dataDir, opDir):
             else:
                 print('This should not happen!!!')
 
-        # Stokes parameters
+        # Compute Stokes parameters
         I = 0.5*(I000+I090 + I045+I135)
         Q = (I000-I090)
         U = (I045-I135)
 
         # Compute DoLP and AoLP values and write to FITS
         dolp = np.sqrt(Q*Q + U*U)/I
-        aolp = 0.5*np.arctan2(U, Q)
+        aolp = np.rad2deg( 0.5*np.arctan2(U, Q) )
 
         header.pop('SWCREATE', None)
         header.pop('POL_ANG', None)
         header.pop('BUNIT', None)
-        #header['FRAMETYP'] = ('DoLP', 'Pixels are fractional DoLP values')
-        #fits.writeto(dolpLoc, dolp, header, overwrite=True)
+        header['EXT1'] = ('DoLP', 'Pixels are fractional DoLP values')
+        header['EXT2'] = ('AoLP', 'Pixels are AoLP degrees')
         empty_primary = fits.PrimaryHDU(header=header)
         dolp_hdu1 = fits.ImageHDU(dolp)
         aolp_hdu2 = fits.ImageHDU(aolp)
         hdul = fits.HDUList([empty_primary, dolp_hdu1, aolp_hdu2])
-        hdul.writeto(dolpLoc, overwrite=True)
+        hdul.writeto(lpLoc, overwrite=True)
 
     return 0
 
@@ -394,5 +413,5 @@ ret = calibrateScience (op)
 '''
 
 # Write DoLP and AoLP images
-ret = getDoLP(ip, op)
+ret = makeDoLP_AoLP_images (ip, op)
 
