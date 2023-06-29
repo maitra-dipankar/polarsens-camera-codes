@@ -10,19 +10,18 @@ Hardware info: the serial numbers of the r, g, and b cameras are hardcoded
 
 2023-Jun-27: First working version (DM)
 
-TBD: Show zoom/panel icons in window (near top). Get Serial number of B camera.
+TBD: Show zoom/panel icons in window (near top).
+Warning: Ignoring XDG_SESSION_TYPE=wayland on Gnome. Use QT_QPA_PLATFORM=wayland to run on Wayland anyway.
 '''
 
 import sys
 import argparse
 import numpy as np
-
+from datetime import datetime
 from arena_api.system import system
 from arena_api.buffer import *
-
 import ctypes
 import cv2
-import time
 
 # Serial numbers of the cameras, in [r, g, b] order
 rgbSerial = np.array([213301046, 211300110, 333])
@@ -151,17 +150,11 @@ def livestream(cam, gain, markNL):
     device = devices[devNum]
     num_channels = setup(device, gain)
 
-    curr_frame_time = 0
-    prev_frame_time = 0
-
     with device.start_stream():
         """
         Infinitely fetch and display buffer data until esc is pressed
         """
         while True:
-            # Used to display FPS on stream
-            curr_frame_time = time.time()
-
             buffer = device.get_buffer()
             """
             Copy buffer and requeue to avoid running out of buffers
@@ -182,9 +175,8 @@ def livestream(cam, gain, markNL):
             npndarray = np.ndarray(buffer=array, dtype=np.uint8, \
                     shape=(item.height, item.width, buffer_bytes_per_pixel))
             
-            fps = (1/(curr_frame_time - prev_frame_time))
-            fpsStr  = "FPS= {0:.1f}  ".format(fps)
             gainStr = "; Gain= {0:.1f}".format(gain)
+            tNow = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
             # Resize to fit on screen
             frac = 0.3
@@ -205,14 +197,12 @@ def livestream(cam, gain, markNL):
                 window_title = "Camera=" + cam + gainStr + \
                         ' *** Press ESC to quit livestream ***'
 
-            cv2.putText(res, fpsStr, (7, 70), cv2.FONT_HERSHEY_SIMPLEX, \
-                    1, (255, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(res, tNow, (7, 50), cv2.FONT_HERSHEY_SIMPLEX, \
+                    0.5, (255, 255, 255), 1, cv2.LINE_AA)
             cv2.imshow(window_title, res)
 
             #Destroy the copied item to prevent memory leaks
             BufferFactory.destroy(item)
-
-            prev_frame_time = curr_frame_time
 
             #Break if esc key is pressed
             key = cv2.waitKey(1)
@@ -267,4 +257,16 @@ def getArgs(argv=None):
 if __name__ == '__main__':
     myCam, myGain, marker = getArgs()   # Read command line inputs
     livestream(myCam, myGain, marker)   # Start livestream
+
+    # Ask whether to stream another camera or quit
+    while True:
+        res = input('Press q to quit, or r/g/b to stream again: ')
+        if res == 'q':
+            break
+        else:
+            livestream(res, myGain, marker)
+
+
+
+
 
