@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
 '''
-* Reduces observations made with the QHY550P camera or PHX050S cameras.
-* File or folder names should not contain spaces!
-* Assumes user says that the FITS frames from the camera are in
+Calibrates observations made with the QHY550P camera or PHX050S cameras. 
+This includes bias- and dark-subtraction, and flat-corection.
+
+IMPORTANT: File or folder names should not contain spaces!
+
+Assumes user says that the FITS frames from the camera are in
      datadir, which is organized as below:
      datadir/Bias         includes the bias frames,
      datadir/Darks        includes the dark frames,
@@ -21,7 +24,7 @@ Thereafter it calibrates the science images via bias- and dark-subtraction,
 and flat-correction.
 
 TBD: 
-- Read FITS produced by Lucidvision Cameras as well.
+- Read FITS produced by Lucid Vision cameras as well.
 '''
 
 import os, sys, glob, shutil
