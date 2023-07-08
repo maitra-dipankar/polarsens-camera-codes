@@ -13,6 +13,7 @@ The top-left corner has the following pixel orientations
 | 135 |   0 |           row, col = evn, evn =>  90 deg
 +-----+-----+           row, col = odd, evn => 135 deg
 
+Requirement(s): numpy
 """
 
 
