@@ -9,13 +9,11 @@ from astropy.io import fits
 from astropy.time import Time
 from arena_api.system import system
 
-
 '''
 Single image acquisition given exposure time, gain, and 
 offset (black level). The saved image buffer is written
 as a FITS file. For usage help type in terminal
  python takeimage.py -h
-
 '''
 
 
@@ -256,12 +254,6 @@ if __name__ == '__main__':
     mydevices = update_create_devices()      # Get connected devices
     mydevice = mydevices[0]                  # Get the device
     
-    acquire_and_save_image(mydevice, myexptime_s, myoffset_adu, mygain_db)
-    acquire_and_save_image(mydevice, myexptime_s, myoffset_adu, mygain_db)
-    acquire_and_save_image(mydevice, myexptime_s, myoffset_adu, mygain_db)
-    acquire_and_save_image(mydevice, myexptime_s, myoffset_adu, mygain_db)
-    acquire_and_save_image(mydevice, myexptime_s, myoffset_adu, mygain_db)
-    acquire_and_save_image(mydevice, myexptime_s, myoffset_adu, mygain_db)
     acquire_and_save_image(mydevice, myexptime_s, myoffset_adu, mygain_db)
 
     # Clean up
