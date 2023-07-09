@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 '''
 Goal: Start livestreaming from a specified (r or g or b) camera with a
       specified gain. Nonlinear (>80% saturation) pixels can be displayed
@@ -10,7 +9,9 @@ Hardware info: the serial numbers of the r, g, and b cameras are hardcoded
 
 2023-Jun-27: First working version (DM)
 
-TBD: Show zoom/panel icons in window (near top).
+TBD: 
+* Get serial number of 'b' camera.
+* Show zoom/panel icons in window (near top).
 Warning: Ignoring XDG_SESSION_TYPE=wayland on Gnome. Use QT_QPA_PLATFORM=wayland to run on Wayland anyway.
 '''
 
