@@ -14,6 +14,8 @@ The top-left corner has the following pixel orientations
 +-----+-----+           row, col = odd, evn => 135 deg
 
 Requirement(s): numpy
+
+TBD: Handle FITS images
 """
 
 
