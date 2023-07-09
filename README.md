@@ -3,4 +3,3 @@ Image acquisition and analysis of data obtained by Sony IMX250/264MZR Polarsens 
 
 * Data MUST be in Science, Darks, Flats, Bias subdirectories. 
 * No spaces in file or folder names
-* TBD: FITS header from PHX050 cameras must have SWCREATE='ArenaSDK' card
