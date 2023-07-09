@@ -21,7 +21,7 @@ try:
     import cmocean
     cmoceanFound = True
 except ModuleNotFoundError:
-    print('Using hsv instead of cmocean')
+    print('Using hsv instead of cmocean! Consider installing cmocean...')
     cmoceanFound = False
 
 from copy import copy
