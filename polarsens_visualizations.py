@@ -22,7 +22,7 @@ try:
     import cmocean
     cmoceanFound = True
 except ModuleNotFoundError:
-    print('Using hsv instead of cmocean')
+    print('Using hsv instead of cmocean! Consider installing cmocean ...')
     cmoceanFound = False
 
 # Location and size of the main image and colorbar [xmin, ymin, dx, dy]   
@@ -151,7 +151,10 @@ def makePlots(fullImgArray, o000, o045, o090, o135, \
        mycmap = copy(plt.cm.hsv)
        if cmoceanFound:
            mycmap = copy(cmocean.cm.phase)
-       mycmap.set_bad('w', 1.0)   
+       else:
+           mycmap = copy(plt.cm.hsv)
+
+       mycmap.set_bad('w', 1.0)
        fig = plt.figure(figsize=(10, 8), dpi=200)
        ax0 = fig.add_axes(main_axis)
        ax0.set_title('Angle of Linear Polarization (white pixels were nonlinear and excluded)')
