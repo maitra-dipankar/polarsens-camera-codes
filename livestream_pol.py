@@ -16,7 +16,14 @@ import ctypes
 
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-import cmocean
+
+try:
+    import cmocean
+    cmoceanFound = True
+except ModuleNotFoundError:
+    print('Using hsv instead of cmocean')
+    cmoceanFound = False
+
 from copy import copy
 from astropy.visualization import (ManualInterval, ImageNormalize,
         LinearStretch)
@@ -161,7 +168,11 @@ def livestream(gain, markNL):
 
     # AoLP
     axes[1].title.set_text('Angle of Linear Polarization (degrees)')
-    acmap = copy(cmocean.cm.phase)
+    if cmoceanFound:
+        acmap = copy(cmocean.cm.phase)
+    else:
+        acmap = copy(plt.cm.hsv)
+      
     anorm = ImageNormalize(res, interval=ManualInterval(-90, 90),
                          stretch=LinearStretch())
     im1 = axes[1].imshow(res, origin='upper', norm=anorm, cmap=acmap)
