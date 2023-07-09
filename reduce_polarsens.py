@@ -22,9 +22,6 @@ into pXXX = (p000 & p045 & p090 & p135) subdirectories such that
 
 Thereafter it calibrates the science images via bias- and dark-subtraction,
 and flat-correction.
-
-TBD: 
-- Read FITS produced by Lucid Vision cameras as well.
 '''
 
 import os, sys, glob, shutil
