@@ -6,6 +6,8 @@ The functions defined in this file allows basic visualization of
 images from polarsens cameras.
 
 Requirement(s): numpy, matplotlib, astropy
+
+TBD: Combined DoLP + AoLP map
 """
 
 import sys
