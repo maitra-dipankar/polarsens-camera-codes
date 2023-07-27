@@ -9,10 +9,8 @@ Hardware info: the serial numbers of the r, g, and b cameras are hardcoded
 
 2023-Jun-27: First working version (DM)
 
-TBD: 
-* Get serial number of 'b' camera.
+TBD:
 * Show zoom/panel icons in window (near top).
-Warning: Ignoring XDG_SESSION_TYPE=wayland on Gnome. Use QT_QPA_PLATFORM=wayland to run on Wayland anyway.
 '''
 
 import sys
@@ -25,7 +23,7 @@ import ctypes
 import cv2
 
 # Serial numbers of the cameras, in [r, g, b] order
-rgbSerial = np.array([213301046, 211300110, 333])
+rgbSerial = np.array([213301046, 211300110, 223200097])
 
 # Nonlinear pixels are >=80% of saturation
 nlin = 0.8*255    
