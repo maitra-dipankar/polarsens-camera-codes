@@ -37,6 +37,7 @@ def readRawToNumpy(rawfile):
     myfile : str
         Input *.raw binary image from a Lucid Vision PHX050S 
         camera containing a Sony IMX250MZR or an IMX264MZR chip.
+        These raw binaries are produce by Lucid's ArenaView software.
 
     Returns
     -------
