@@ -41,12 +41,14 @@ def readFitsToNumpy(fitsfile):
     -------
     img_array_2d : int16
         Numpy 2D array of size IMG_HEIGHT rows and IMG_WIDTH columns.
+    bpp : int
+        Bits/pixel (8 or 12)
     '''
     
     # Read header and data in image
     img_array_raw, header = fits.getdata(fitsfile, ext=0, header=True)
     
-    sw = fits.getval(fitsfile, 'SWCREATE', ext=0)
+    sw = header['SWCREATE']
     
     if (sw.find('SharpCap') != -1):
         print('Reading FITS image taken with SharpCap')
@@ -89,11 +91,12 @@ def readFitsToNumpy(fitsfile):
         print('Not SharpCap/NINA/ArenaSDK! Quitting ...')
         sys.exit(0)
         
-    return img_data_scaled
+    bitsPerPixel = 12    # The scales image array is 12 bpp
+        
+    return img_data_scaled, bitsPerPixel
 
     
 
-    
 def readRawToNumpy(rawfile):
     '''
     Read raw binary image file from PHX050 camera into 
@@ -109,20 +112,25 @@ def readRawToNumpy(rawfile):
 
     Returns
     -------
-    Numpy 2D array of size IMG_HEIGHT rows and IMG_WIDTH columns. 
-    The bit depth is 8 or 16 bits depending on the input raw image.
+    img_array_2d : uint8 or int16
+        Numpy 2D array of size IMG_HEIGHT rows and IMG_WIDTH columns. 
+        The bit depth is 8 or 16 bits depending on the input raw image.
+    bpp : int
+        Bits/pixel (8 or 12)
     '''
     binary_array = np.fromfile(rawfile, dtype='uint8')
     
     num_bytes = len(binary_array)
 
     if (num_bytes == NPIX):          # Mono8 format
-        print('Decoding 8-bit image:', rawfile)
+        print('Reading 8-bit image:', rawfile)
+        bitsPerPixel = 8
         img_arr_1d = binary_array
     
     elif (num_bytes == 2*NPIX):      # Mono12 format
-        print('Decoding 12-bit image:', rawfile)
-    
+        print('Reading 12-bit image:', rawfile)
+        bitsPerPixel = 12
+        
         # Select even bytes, i.e. the 0th, 2nd, 4th, 6th, ...
         # and the odd bytes, i.e. the 1st, 3rd, 5th, 7th, ...
         evn_arr = binary_array[0::2].copy()
@@ -146,7 +154,8 @@ def readRawToNumpy(rawfile):
     # Reshape 1D array img_arr_1d to 2D image array
     img_array_2d = img_arr_1d.reshape(IMG_HEIGHT, IMG_WIDTH)
     
-    return img_array_2d
+    return img_array_2d, bitsPerPixel
+
 
 
 def extractSubimages(img_array_2d):
@@ -171,6 +180,7 @@ def extractSubimages(img_array_2d):
     orient000 = img_array_2d[1::2, 1::2].astype('float64')
     
     return orient000, orient045, orient090, orient135
+
 
 
 def do_bilinear(orientX, rowOffset, colOffset):
@@ -249,6 +259,7 @@ def do_bilinear(orientX, rowOffset, colOffset):
     return trimmedX
 
 
+
 def computeStokes (orient000, orient045, orient090, orient135):
     '''
     Computes the Stokes parameters given subimages with different 
@@ -271,6 +282,7 @@ def computeStokes (orient000, orient045, orient090, orient135):
     return S0, S1, S2
     
 
+
 def computeDOLP (S0, S1, S2):
     '''
     Given Stokes parameters S0, S1, and S2, returns the percentage 
@@ -292,6 +304,7 @@ def computeDOLP (S0, S1, S2):
     return DOLP
 
 
+
 def computeAOLP (S1, S2):
     '''
     Given Stokes parameters S1 and S2, returns the Angle of Linear 
@@ -311,3 +324,25 @@ def computeAOLP (S1, S2):
     AOLP = np.rad2deg( 0.5 * np.arctan2(S2, S1) )
     
     return AOLP
+
+
+
+def getArrayStat(array, bpp):
+    if array.ndim > 1:
+        array = np.ndarray.flatten(array)
+    
+    saturation = 2**bpp - 1
+    avg_pixval = np.average(array)
+    minpixval = np.amin(array)
+    maxpixval = np.amax(array)
+    maxpixpct = 100.0*maxpixval/saturation
+    p1,p50, p99 = np.percentile(array, (1, 50, 99))  #5,50,95 percentiles
+
+    print(' Average:', f'{avg_pixval:.3}')
+    print(' Minimum:', minpixval)
+    print(' Maximum pixel value (ADU):', maxpixval, 
+          '(', f'{maxpixpct:.3}','% of saturation)')
+    print(' 1,50,99 percentiles: ',p1,p50,p99)
+    
+    return avg_pixval, minpixval, maxpixval, p1,p50,p99
+
