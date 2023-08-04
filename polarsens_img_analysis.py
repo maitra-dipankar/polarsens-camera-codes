@@ -13,17 +13,85 @@ The top-left corner has the following pixel orientations
 | 135 |   0 |           row, col = evn, evn =>  90 deg
 +-----+-----+           row, col = odd, evn => 135 deg
 
-Requirement(s): numpy
-
-TBD: Handle FITS images
+Requirement(s): numpy, astropy
 """
 
 
 import sys
 import numpy as np
+from astropy.io import fits
+
 
 IMG_HEIGHT, IMG_WIDTH = 2048, 2448      # For IMX250MZR/IMX264MZR chip
 NPIX = IMG_HEIGHT * IMG_WIDTH           # Total number of pixels
+
+
+def readFitsToNumpy(fitsfile):
+    '''
+    Parameters
+    ----------
+    fitsfile : str
+        Input FITS format file, taken with QHY550P camera or PHX050S camera.
+        Assumes that the FITS was created using NINA or SharpCap (for the QHY
+        camera), or using Arena SDK (for the PHX camera). The FITS header
+        SWCREATE says which software was used to create the FITS.
+        Also assumes that the image data is in ext=0 of the FITS file.
+
+    Returns
+    -------
+    img_array_2d : int16
+        Numpy 2D array of size IMG_HEIGHT rows and IMG_WIDTH columns.
+    '''
+    
+    # Read header and data in image
+    img_array_raw, header = fits.getdata(fitsfile, ext=0, header=True)
+    
+    sw = fits.getval(fitsfile, 'SWCREATE', ext=0)
+    
+    if (sw.find('SharpCap') != -1):
+        print('Reading FITS image taken with SharpCap')
+
+        # Crop image to keep good region
+        img_data = img_array_raw[0:-22, 0:-12]
+
+        # Divide by 16 (= 2^16 / 2^12) because the FITS files are
+        # stretched to 16 bits/pixel whereas the CMOS is 12 bpp!
+        img_data_scaled = img_data/16
+        img_data_scaled = img_data_scaled.astype('int16')
+        
+        # Get rid of some junk header keywords inserted by SharpCap
+        header.pop('COLORTYP', None)
+        header.pop('XBAYROFF', None)
+        header.pop('YBAYROFF', None)
+        header.pop('YBAYROFF', None)
+        header.pop('BAYOFFX',  None)
+        header.pop('BAYOFFY',  None)
+        header.pop('BAYERPAT', None)
+        
+    elif (sw.find('N.I.N.A.') != -1):
+        print('Reading FITS image taken with NINA')
+
+        # Crop image to keep good region
+        img_data = img_array_raw[22:, 12:]
+
+        # Divide by 16 (= 2^16 / 2^12) because the FITS files are
+        # stretched to 16 bits/pixel whereas the CMOS is 12 bpp!
+        img_data_scaled = img_data/16
+        img_data_scaled = img_data_scaled.astype('int16')
+
+    elif (sw.find('ArenaSDK') != -1):
+        print('Reading FITS image taken with ArenaSDK')
+
+        # No need to trim or scale PHX050S data
+        img_data_scaled = img_array_raw
+
+    else:
+        print('Not SharpCap/NINA/ArenaSDK! Quitting ...')
+        sys.exit(0)
+        
+    return img_data_scaled
+
+    
 
     
 def readRawToNumpy(rawfile):
@@ -34,7 +102,7 @@ def readRawToNumpy(rawfile):
 
     Parameters
     ----------
-    myfile : str
+    rawfile : str
         Input *.raw binary image from a Lucid Vision PHX050S 
         camera containing a Sony IMX250MZR or an IMX264MZR chip.
         These raw binaries are produce by Lucid's ArenaView software.
@@ -107,7 +175,8 @@ def extractSubimages(img_array_2d):
 
 def do_bilinear(orientX, rowOffset, colOffset):
     '''
-    Carries out bilinear interpolation.
+    Carries out bilinear interpolation to determine values between pixel
+    gaps, for pixels of a given orientation.
 
     Parameters
     ----------
@@ -117,7 +186,16 @@ def do_bilinear(orientX, rowOffset, colOffset):
     
     rowOffset, colOffset: each is an int, defined as below.
         img_array[rowOffset][colOffset] = orientX[0][0]
-
+        More specifically for the IMX250/264 chips, the polarizer orientations
+        and corresponding row/column offsets are shown below:
+                          
+        +-----+-----+     orientation : rowOffset, colOffset        
+        |  90 |  45 |             000 : 1,1
+        +-----+-----+             045 : 0,1
+        | 135 |   0 |             090 : 0,0
+        +-----+-----+             135 : 1,0
+        
+        
     Returns
     ------
     trimmedX: float64
@@ -161,8 +239,8 @@ def do_bilinear(orientX, rowOffset, colOffset):
     orientXfull[1::2, 1::2] = midPt
 
     # Apply offset to put the array on the entire CMOS array
-    orientXcmos[rowOffset : 2*nr - 1 + rowOffset : 1, \
-        colOffset : 2 * nc - 1 + rowOffset : 1] = orientXfull
+    orientXcmos[ rowOffset :  rowOffset + 2*nr-1, \
+                 colOffset :  colOffset + 2*nc-1 ] = orientXfull
 
     # Trim the edges because not all edges will contain useful
     # information about all orientations

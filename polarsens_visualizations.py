@@ -42,7 +42,6 @@ azimuthsR = np.linspace(-90, 91, thpts)
 valuesR =  azimuthsR * np.ones((rpts, thpts))
 ###############
 
-print('Creating plots')
 
 def makePlots(fullImgArray, o000, o045, o090, o135, \
               DoLP, AoLP, opfile):
@@ -61,6 +60,8 @@ def makePlots(fullImgArray, o000, o045, o090, o135, \
     PDF file with visualizations.
 
     '''
+    print('Creating plots')
+
     # use copy so that we do not mutate the global colormap instance
     grayCmap = copy(plt.cm.gray)
 
