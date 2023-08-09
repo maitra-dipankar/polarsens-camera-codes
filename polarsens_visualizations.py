@@ -10,7 +10,7 @@ Requirement(s): numpy, matplotlib, astropy
 TBD: Combined DoLP + AoLP map
 """
 
-import sys
+
 import numpy as np
 from copy import copy
 import matplotlib.pyplot as plt
@@ -44,7 +44,7 @@ valuesR =  azimuthsR * np.ones((rpts, thpts))
 
 
 def makePlots(fullImgArray, o000, o045, o090, o135, \
-              DoLP, AoLP, opfile):
+              DoLP, AoLP, nonlinear, opfile):
     '''
     Creates visualizations
 
@@ -52,6 +52,8 @@ def makePlots(fullImgArray, o000, o045, o090, o135, \
     ----------
     fullImgArray, o000, o045, o090, o135, DoLP, AoLP : 2D arrays
         Arrays to display
+    nonliinear : int
+        ADU above which nonlinearity set is, and hence data is bad.
     opfile : str
         Name of output PDF file that contains visualizations.
 
@@ -61,94 +63,133 @@ def makePlots(fullImgArray, o000, o045, o090, o135, \
 
     '''
     print('Creating plots')
-
+    
+    DPI = 100
+    
     # use copy so that we do not mutate the global colormap instance
     grayCmap = copy(plt.cm.gray)
+    grayCmap.set_bad('r', 1.0)
+    grayCmap.set_over('r', 1.0)
+    grayCmap.set_under('g', 1.0)
+
 
     with PdfPages(opfile) as pdf:
-       
-       fig = plt.figure(figsize=(10, 8), dpi=200)
+        
+       # Full Image
+       fig = plt.figure(figsize=(10, 8), dpi=DPI, clear=True)
        ax0 = fig.add_axes(main_axis)
        cbar_label = 'Counts (ADU)'
-       ax0.set_title('Raw image from sensor')
-       im = ax0.imshow(fullImgArray, origin='upper', cmap=grayCmap)
+       pltTitle = 'Full image. Red pixels were nonlinear (>' \
+           + str(nonlinear) + ' ADU)'
+       ax0.set_title(pltTitle)
+       mynorm = ImageNormalize(fullImgArray, interval=ManualInterval(0, \
+                            nonlinear), stretch=LinearStretch())
+       arr = np.where(fullImgArray > nonlinear, np.nan, fullImgArray)
+       im = ax0.imshow(arr, origin='upper', norm=mynorm, cmap=grayCmap)
        
        ax1 = fig.add_axes(cbar_axis)
-       cbar = fig.colorbar(im, cax=ax1)
+       cbar = fig.colorbar(im, cax=ax1, extend='both', shrink=0.9)
        cbar.set_label(cbar_label)
        pdf.savefig(fig)
        plt.close()
-    
-    
-       fig = plt.figure(figsize=(10, 8), dpi=200)
+       
+       # 0-deg image
+       fig = plt.figure(figsize=(10, 8), dpi=DPI, clear=True)
        ax0 = fig.add_axes(main_axis)
        cbar_label = 'Counts (ADU)'
-       ax0.set_title('Subimage with pixels oriented $0^\circ$, measured CCW from horizontal')
-       im = ax0.imshow(o000, origin='upper', cmap=grayCmap)
+       pltTitle = '$0^\circ$ image. Red pixels were nonlinear (>' \
+           + str(nonlinear) + ' ADU)'
+       ax0.set_title(pltTitle)
+       mynorm = ImageNormalize(o000, interval=ManualInterval(0, \
+                            nonlinear), stretch=LinearStretch())
+       arr = np.where(o000 > nonlinear, np.nan, o000)
+       im = ax0.imshow(arr, origin='upper', norm=mynorm, cmap=grayCmap)
        
        ax1 = fig.add_axes(cbar_axis)
-       cbar = fig.colorbar(im, cax=ax1)
+       cbar = fig.colorbar(im, cax=ax1, extend='both', shrink=0.9)
+       cbar.set_label(cbar_label)
+       pdf.savefig(fig)
+       plt.close()    
+    
+       # 90-deg image
+       fig = plt.figure(figsize=(10, 8), dpi=DPI, clear=True)
+       ax0 = fig.add_axes(main_axis)
+       cbar_label = 'Counts (ADU)'
+       pltTitle = '$90^\circ$ image. Red pixels were nonlinear (>' \
+           + str(nonlinear) + ' ADU)'
+       ax0.set_title(pltTitle)
+       mynorm = ImageNormalize(o090, interval=ManualInterval(0, \
+                            nonlinear), stretch=LinearStretch())
+       arr = np.where(o090 > nonlinear, np.nan, o090)
+       im = ax0.imshow(arr, origin='upper', norm=mynorm, cmap=grayCmap)
+      
+       ax1 = fig.add_axes(cbar_axis)
+       cbar = fig.colorbar(im, cax=ax1, extend='both', shrink=0.9)
+       cbar.set_label(cbar_label)
+       pdf.savefig(fig)
+       plt.close()    
+    
+       # 45-deg image
+       fig = plt.figure(figsize=(10, 8), dpi=DPI, clear=True)
+       ax0 = fig.add_axes(main_axis)
+       cbar_label = 'Counts (ADU)'
+       pltTitle = '$45^\circ$ image. Red pixels were nonlinear (>' \
+           + str(nonlinear) + ' ADU)'
+       ax0.set_title(pltTitle)
+       mynorm = ImageNormalize(o045, interval=ManualInterval(0, \
+                            nonlinear), stretch=LinearStretch())
+       arr = np.where(o045 > nonlinear, np.nan, o045)
+       im = ax0.imshow(arr, origin='upper', norm=mynorm, cmap=grayCmap)
+      
+       ax1 = fig.add_axes(cbar_axis)
+       cbar = fig.colorbar(im, cax=ax1, extend='both', shrink=0.9)
+       cbar.set_label(cbar_label)
+       pdf.savefig(fig)
+       plt.close()    
+    
+       # 135-deg image
+       fig = plt.figure(figsize=(10, 8), dpi=DPI, clear=True)
+       ax0 = fig.add_axes(main_axis)
+       cbar_label = 'Counts (ADU)'
+       pltTitle = '-45$^\circ$ image. Red pixels were nonlinear (>' \
+           + str(nonlinear) + ' ADU)'
+       ax0.set_title(pltTitle)
+       mynorm = ImageNormalize(o135, interval=ManualInterval(0, \
+                            nonlinear), stretch=LinearStretch())
+       arr = np.where(o135 > nonlinear, np.nan, o135)
+       im = ax0.imshow(arr, origin='upper', norm=mynorm, cmap=grayCmap)
+      
+       ax1 = fig.add_axes(cbar_axis)
+       cbar = fig.colorbar(im, cax=ax1, extend='both', shrink=0.9)
        cbar.set_label(cbar_label)
        pdf.savefig(fig)
        plt.close()
-    
-    
-       fig = plt.figure(figsize=(10, 8), dpi=200)
-       ax0 = fig.add_axes(main_axis)
-       cbar_label = 'Counts (ADU)'
-       ax0.set_title('Subimage with pixels oriented $90^\circ$, measured CCW from horizontal')
-       im = ax0.imshow(o090, origin='upper', cmap=grayCmap)
        
-       ax1 = fig.add_axes(cbar_axis)
-       cbar = fig.colorbar(im, cax=ax1)
-       cbar.set_label(cbar_label)
-       pdf.savefig(fig)
-       plt.close()
-    
-    
-       fig = plt.figure(figsize=(10, 8), dpi=200)
-       ax0 = fig.add_axes(main_axis)
-       cbar_label = 'Counts (ADU)'
-       ax0.set_title('Subimage with pixels oriented $45^\circ$, measured CCW from horizontal')
-       im = ax0.imshow(o045, origin='upper', cmap=grayCmap)
+       # Make a mask to ignore nonlinear pixels
+       maskArr = np.where(( (o000<nonlinear) & (o045<nonlinear) & \
+                           (o090<nonlinear) & (o135<nonlinear) ), False, True)
        
-       ax1 = fig.add_axes(cbar_axis)
-       cbar = fig.colorbar(im, cax=ax1)
-       cbar.set_label(cbar_label)
-       pdf.savefig(fig)
-       plt.close()
-    
-    
-       fig = plt.figure(figsize=(10, 8), dpi=200)
-       ax0 = fig.add_axes(main_axis)
-       cbar_label = 'Counts (ADU)'
-       ax0.set_title('Subimage with pixels oriented $-45^\circ$, measured CCW from horizontal')
-       im = ax0.imshow(o135, origin='upper', cmap=grayCmap)
-       
-       ax1 = fig.add_axes(cbar_axis)
-       cbar = fig.colorbar(im, cax=ax1)
-       cbar.set_label(cbar_label)
-       pdf.savefig(fig)
-       plt.close()
-    
-    
+       # DoLP image
        mycmap = copy(plt.cm.viridis)
-       mycmap.set_bad('w', 1.0)  
-       fig = plt.figure(figsize=(10, 8), dpi=200)
-       dolpmin, dolpmax = np.amin(DoLP), np.amax(DoLP)
+       mycmap.set_bad('w', 1.0)
+       mycmap.set_over('w', 1.0)
+       mycmap.set_under('r', 1.0)
+       masked = np.ma.masked_where(maskArr, DoLP)
+       fig = plt.figure(figsize=(10, 8), dpi=DPI, clear=True)
+       dolpmin, dolpmax = 0, 100     # np.amin(DoLP), np.amax(DoLP)
        mynorm = ImageNormalize(DoLP, interval=ManualInterval(dolpmin, dolpmax),
                              stretch=LinearStretch())
        ax0 = fig.add_axes(main_axis)
-       ax0.set_title('Degree of Linear Polarization (white pixels were nonlinear and excluded)')
-       im = ax0.imshow(DoLP, origin='upper', norm=mynorm, cmap=mycmap)
+       ax0.set_title('Degree of Linear Polarization. White pixels were nonlinear and excluded')
+       im = ax0.imshow(masked, origin='upper', norm=mynorm, cmap=mycmap)
     
        ax1 = fig.add_axes(cbar_axis)
-       cbar = fig.colorbar(im, cax=ax1)
+       cbar = fig.colorbar(im, cax=ax1, extend='both', shrink=0.9)
        cbar.set_label('Degree of linear polarization (percent)')
        pdf.savefig(fig)
        plt.close()
-    
-    
+       
+       # AoLP image
        mycmap = copy(plt.cm.hsv)
        if cmoceanFound:
            mycmap = copy(cmocean.cm.phase)
@@ -156,10 +197,11 @@ def makePlots(fullImgArray, o000, o045, o090, o135, \
            mycmap = copy(plt.cm.hsv)
 
        mycmap.set_bad('w', 1.0)
-       fig = plt.figure(figsize=(10, 8), dpi=200)
+       masked = np.ma.masked_where(maskArr, AoLP)
+       fig = plt.figure(figsize=(10, 8), dpi=DPI, clear=True)
        ax0 = fig.add_axes(main_axis)
-       ax0.set_title('Angle of Linear Polarization (white pixels were nonlinear and excluded)')
-       im = ax0.imshow(AoLP, origin='upper', cmap=mycmap)
+       ax0.set_title('Angle of Linear Polarization. White pixels were nonlinear and excluded')
+       im = ax0.imshow(masked, origin='upper', cmap=mycmap)
     
        ax1 = fig.add_axes([0.72,0.45, 0.25,0.25], projection='polar')
        ax1.grid(False)
@@ -179,8 +221,22 @@ def makePlots(fullImgArray, o000, o045, o090, o135, \
            
        pdf.savefig(fig)
        plt.close()
-    
-    
+       
+       # Histograms
+       fig = plt.figure(figsize=(10, 8), dpi=DPI, clear=True)
+       ax0 = fig.add_subplot(1, 1, 1)
+       ax0.set_title('Histogram of pixel intensities')
+       kwargs = dict(histtype='step', alpha=0.99, bins=100, log='True')
+       ax0.hist(o000.ravel(), **kwargs, color='r', label='0 deg')
+       ax0.hist(o045.ravel(), **kwargs, color='g', label='45 deg')
+       ax0.hist(o090.ravel(), **kwargs, color='b', label='90 deg')
+       ax0.hist(o135.ravel(), **kwargs, color='k', label='-45 deg')
+       ax0.legend()
+       ax0.set_xlabel('Pixel value (ADU)')
+       ax0.set_ylabel('Number of pixels')
+       pdf.savefig(fig)
+       plt.close()
+   
     
        d = pdf.infodict()
        d['Title'] = 'Polarization results'
