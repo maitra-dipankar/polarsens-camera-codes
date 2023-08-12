@@ -9,6 +9,9 @@ from astropy.io import fits
 from astropy.time import Time
 from arena_api.system import system
 
+# Serial numbers of the cameras, in [r, g, b] order
+rgbSerial = np.array([213301046, 211300110, 223200097])
+
 '''
 Single image acquisition given exposure time, gain, and 
 offset (black level). The saved image buffer is written
@@ -42,7 +45,7 @@ def update_create_devices():
         raise Exception('No device found! Please connect a device and run ')
 
 
-def acquire_and_save_image(device, exptime_s, offset_adu, gain):
+def acquire_and_save_image(device, camName, exptime_s, offset_adu, gain):
 
     # Get device nodemap to get, and set imaging parameters
     devmap = device.nodemap
@@ -139,7 +142,7 @@ def acquire_and_save_image(device, exptime_s, offset_adu, gain):
         
         # Save the numpy array as a FITS image with some metadata
         save2fits(nparray_reshaped, utc_now, mjd_now, exptime, 
-                offset, gain, devtemp, devPower, devSrl, devModel)
+                offset, gain, devtemp, devPower, devSrl, devModel, camName)
 
         
         # Requeue to release buffer memory
@@ -150,9 +153,8 @@ def acquire_and_save_image(device, exptime_s, offset_adu, gain):
 
 
 def save2fits(imgarray, utc_isot, mjd, exptime_s, offset_adu, gain_db,
-        sensor_temp, dev_power, dev_serial, dev_model):
+        sensor_temp, dev_power, dev_serial, dev_model, camName):
     '''
-    Each camera needs to have its own filter hardcoded.
     The goal is to write the FITS as quickly as possible, so we supply
     both UTC and MJD of observation.
     '''
@@ -164,8 +166,6 @@ def save2fits(imgarray, utc_isot, mjd, exptime_s, offset_adu, gain_db,
     else:
         print('No good camera. Quitting...')
         sys.exit(0)
-    
- 
     
     opfile = 'p' + str(mjd) + '.fits'  # Create output FITS filename
 
@@ -194,7 +194,7 @@ def save2fits(imgarray, utc_isot, mjd, exptime_s, offset_adu, gain_db,
     hdr['TELESCOP'] = ('RedCat 51',    'Telescope name')
     hdr['APERTURE'] = (51,             'Telescope diameter [mm]')
     hdr['FOCALLEN'] = (250,            'Telescope focal length [mm]')
-    hdr['FILTER']   = ('R/G/B',        'Chroma R/G/B filter')
+    hdr['FILTER']   = (camName,        'Chroma R/G/B filter')
     hdr['PLATESCL'] = (2.85,           'Plate scale [arcsec/pixel]')
     hdr['HFOV']     = (1.94,           'Horizontal FOV [degrees]')
     hdr['VFOV']     = (1.62,           'Vertical FOV [degrees]')
@@ -205,14 +205,81 @@ def save2fits(imgarray, utc_isot, mjd, exptime_s, offset_adu, gain_db,
     hdu.writeto(opfile, overwrite=False)
 
 
+def getSerial(devices):
+    nDevFound = len(devices)
+    detectedSerials = np.zeros(nDevFound, dtype=np.uint32)
+    ii=0
+    for device in devices:
+        detectedSerials[ii] = \
+                device.nodemap.get_node("DeviceSerialNumber").value
+        ii+=1
+
+    return detectedSerials
+
+
+def cameraToSerial(camName):
+    # Given camera name (r or g or b),
+    # return the serial number of that camera.
+    if camName == 'r':
+        serial = rgbSerial[0]
+    elif camName == 'g':
+        serial = rgbSerial[1]
+    elif camName == 'b':
+        serial = rgbSerial[2]
+    else:
+        print('This should not happen. Quitting')
+        sys.exit(0)
+
+    return serial
+
+
+def serialToCamera(serial):
+    # Given camera's serial number, return the camera name
+    if serial == rgbSerial[0]:
+        name = 'r'
+    elif serial == rgbSerial[1]:
+        name = 'g'
+    elif serial == rgbSerial[2]:
+        name = 'b'
+    else:
+        print('This should not happen. Quitting')
+        sys.exit(0)
+
+    return name
+
+
+def findCamInDetectedDeviceList (camSrl, detectedDeviceList):
+    '''
+    Search for camera with serial number camSrl in the list of detected
+    devices. Note that np.where returns a tuple, hence the [0] at end.
+    '''
+    devNum = np.where(detectedDeviceList == camSrl)[0]
+
+    # A couple of sanity checks
+    if len(devNum) == 0:
+        print('Specified camera not detected. Quitting...')
+        sys.exit(0)
+    if len(devNum)  > 1:
+        print('Multiple cameras with same serial. Quitting...')
+        sys.exit(0)
+
+    return devNum[0]
+  
+
 def getArgs(argv=None):
     descr='Take an image with the PHX050S camera, given \
         exposure time in seconds, offset in ADUs, and the   \
         gain in dB. \
-        For example "python %(prog)s -e 1.5 -o 200 -g 7" takes\
-        a 1.5 second exposure with 200 ADU offset and 7 dB gain.'
+        For example "python %(prog)s -c r -e 1.5 -o 200 -g 7" takes\
+        a 1.5 second exposure with 200 ADU offset and 7 dB gain, using the\
+        r camera.'
     parser = argparse.ArgumentParser(description=descr)
     requiredNamed = parser.add_argument_group('required named arguments')
+    requiredNamed.add_argument('-c', 
+            type=str.lower, 
+            required=True, 
+            dest='cam',
+            help="Camera name. Has to be either r/g/b/0/1/2.")
     requiredNamed.add_argument('-e', 
             type=float, 
             required=True, 
@@ -232,6 +299,10 @@ def getArgs(argv=None):
     args = parser.parse_args(argv)
 
     # Some further sanity checks on inputs
+    if args.cam != 'r' and args.cam != 'g' and args.cam != 'b' and \
+            args.cam != '0' and args.cam != '1' and args.cam != '2':
+                print('Camera has to be one of r/g/b/0/1/2.')
+                sys.exit(0)
     if args.exp < 0.001 or args.exp > 10:
         print('Exposure time has to be between 0.001 and 10 seconds.')
         sys.exit(0)
@@ -242,22 +313,43 @@ def getArgs(argv=None):
         print('Gain has to be between 0 and 24 dB.')
         sys.exit(0)
 
-    return args.exp, args.offset, args.gain
+    return args.cam, args.exp, args.offset, args.gain
 
 
 if __name__ == '__main__':
 
-    # Get/set exposure time, offset, gain for the image
-    myexptime_s, myoffset_adu, mygain_db = getArgs()
+    # Get camera, set exposure time, offset, gain for the image
+    cam, myexptime_s, myoffset_adu, mygain_db = getArgs()
 
-    print('\nExample started\n')
-    mydevices = update_create_devices()      # Get connected devices
-    mydevice = mydevices[0]                  # Get the device
+    devices = update_create_devices()      # Get connected devices
+    srlDetected = getSerial(devices)
+
+    # if cam is a camera name
+    if cam == 'r' or cam == 'g' or cam == 'b':    
+        # Get serial number of requested camera and look 
+        # for requested camera in detected device list
+        camSrl = cameraToSerial(cam)  
+        devNum = findCamInDetectedDeviceList (camSrl, srlDetected)
+        camName = cam
+
+    # otherwise, if cam is a detected-device-number
+    elif cam == '0' or cam == '1' or cam == '2':
+        devNum = int(cam)
+        camSrl = srlDetected[devNum]
+        camName = serialToCamera(camSrl)
+
+    # otherwise we have a problem
+    else:
+        print('Ill-defined cam. Quitting...')
+        sys.exit(0)
+
+    device = devices[devNum]            # Use requested device
     
-    acquire_and_save_image(mydevice, myexptime_s, myoffset_adu, mygain_db)
+    acquire_and_save_image(device, camName, myexptime_s, myoffset_adu, \
+            mygain_db)
 
     # Clean up
     system.destroy_device() 
     
-    print('\nExample finished successfully')
+    print('\nFinished successfully')
 
